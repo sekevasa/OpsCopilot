@@ -312,10 +312,14 @@ async def forecast_inventory_risk(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
+
+
+@router.get("/health")
+async def health() -> Dict[str, Any]:
     """Health check endpoint."""
     return {
         "status": "healthy",
         "service": "forecast-service",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow(),
+        "timestamp": datetime.utcnow().isoformat(),
     }

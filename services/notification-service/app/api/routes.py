@@ -453,10 +453,14 @@ async def list_available_channels() -> Dict[str, Any]:
             },
         ],
     }
+
+
+@router.get("/health")
+async def health() -> Dict[str, Any]:
     """Health check endpoint."""
     return {
         "status": "healthy",
         "service": "notification-service",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow(),
+        "timestamp": datetime.utcnow().isoformat(),
     }
