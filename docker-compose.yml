@@ -1,0 +1,183 @@
+"""Docker Compose orchestration for all services."""
+
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: copilot_postgres
+    environment:
+      POSTGRES_USER: copilot_user
+      POSTGRES_PASSWORD: copilot_password
+      POSTGRES_DB: copilot_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copilot_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - copilot_network
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: copilot_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - copilot_network
+
+  # Data Ingest Service
+  data-ingest:
+    build:
+      context: .
+      dockerfile: services/data-ingest-service/Dockerfile
+    container_name: copilot_data_ingest
+    environment:
+      DB_USER: copilot_user
+      DB_PASSWORD: copilot_password
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: copilot_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVICE_NAME: data-ingest-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - copilot_network
+    restart: on-failure
+
+  # Unified Data Service
+  unified-data:
+    build:
+      context: .
+      dockerfile: services/unified-data-service/Dockerfile
+    container_name: copilot_unified_data
+    environment:
+      DB_USER: copilot_user
+      DB_PASSWORD: copilot_password
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: copilot_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVICE_NAME: unified-data-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - copilot_network
+    restart: on-failure
+
+  # AI Runtime Service
+  ai-runtime:
+    build:
+      context: .
+      dockerfile: services/ai-runtime-service/Dockerfile
+    container_name: copilot_ai_runtime
+    environment:
+      DB_USER: copilot_user
+      DB_PASSWORD: copilot_password
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: copilot_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVICE_NAME: ai-runtime-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - copilot_network
+    restart: on-failure
+
+  # Forecast Service
+  forecast:
+    build:
+      context: .
+      dockerfile: services/forecast-service/Dockerfile
+    container_name: copilot_forecast
+    environment:
+      DB_USER: copilot_user
+      DB_PASSWORD: copilot_password
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: copilot_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVICE_NAME: forecast-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8004:8004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - copilot_network
+    restart: on-failure
+
+  # Notification Service
+  notification:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    container_name: copilot_notification
+    environment:
+      DB_USER: copilot_user
+      DB_PASSWORD: copilot_password
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: copilot_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVICE_NAME: notification-service
+      LOG_LEVEL: INFO
+    ports:
+      - "8005:8005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - copilot_network
+    restart: on-failure
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  copilot_network:
+    driver: bridge

@@ -1,0 +1,3 @@
+"""Requirements for unified-data service."""
+
+-r ../../shared/requirements.txt

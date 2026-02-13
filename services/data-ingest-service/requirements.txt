@@ -1,0 +1,4 @@
+"""Requirements for data-ingest service."""
+
+# Include shared requirements
+-r ../../shared/requirements.txt

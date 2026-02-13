@@ -1,0 +1,3 @@
+"""Requirements for forecast service."""
+
+-r ../../shared/requirements.txt

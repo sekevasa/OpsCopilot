@@ -1,0 +1,3 @@
+"""Requirements for ai-runtime service."""
+
+-r ../../shared/requirements.txt

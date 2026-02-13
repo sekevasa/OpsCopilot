@@ -1,0 +1,3 @@
+"""Requirements for notification service."""
+
+-r ../../shared/requirements.txt
