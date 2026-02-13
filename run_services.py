@@ -81,9 +81,57 @@ def start_service(service_config):
     env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONPATH"] = str(Path.cwd())
 
+    # Determine Python executable to use for subprocesses.
+    # Prefer the virtualenv python if present, otherwise use sys.executable.
+    def find_python_executable() -> str:
+        # Prefer a local ./venv Python if present (most common for this project)
+        candidates = [
+            Path.cwd() / "venv" / "Scripts" / "python.exe",
+            Path.cwd() / ".venv" / "Scripts" / "python.exe",
+            Path.cwd() / "env" / "Scripts" / "python.exe",
+        ]
+
+        for c in candidates:
+            if c.exists():
+                return str(c)
+
+        # If VIRTUAL_ENV is set, try that
+        venv = os.environ.get("VIRTUAL_ENV")
+        if venv:
+            candidate = Path(venv) / "Scripts" / "python.exe"
+            if candidate.exists():
+                return str(candidate)
+
+        # Last resort: sys.executable
+        return sys.executable
+
+    # Ensure chosen interpreter can import uvicorn; if not, try alternatives
+    def ensure_uvicorn_available(python_path: str) -> str:
+        try:
+            res = subprocess.run(
+                [python_path, "-c", "import uvicorn"], capture_output=True)
+            if res.returncode == 0:
+                return python_path
+        except Exception:
+            pass
+
+        # Try sys.executable as fallback
+        try:
+            res = subprocess.run(
+                [sys.executable, "-c", "import uvicorn"], capture_output=True)
+            if res.returncode == 0:
+                return sys.executable
+        except Exception:
+            pass
+
+        # Finally return original candidate (will likely fail and surface helpful error)
+        return python_path
+
+    python_exec = ensure_uvicorn_available(find_python_executable())
+
     # Build command
     cmd = [
-        sys.executable,
+        python_exec,
         "-m",
         "uvicorn",
         "main:app",
