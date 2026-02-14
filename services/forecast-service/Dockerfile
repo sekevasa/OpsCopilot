@@ -1,5 +1,4 @@
-"""Dockerfile for forecast service."""
-
+# Dockerfile for forecast service
 FROM python:3.11-slim
 
 WORKDIR /app

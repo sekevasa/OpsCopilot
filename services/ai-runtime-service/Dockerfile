@@ -1,5 +1,4 @@
-"""Dockerfile for ai-runtime service."""
-
+# Dockerfile for ai-runtime service
 FROM python:3.11-slim
 
 WORKDIR /app

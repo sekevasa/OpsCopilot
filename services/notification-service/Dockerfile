@@ -1,5 +1,4 @@
-"""Dockerfile for notification service."""
-
+# Dockerfile for notification service
 FROM python:3.11-slim
 
 WORKDIR /app

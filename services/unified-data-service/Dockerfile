@@ -1,5 +1,4 @@
-"""Dockerfile for unified-data service."""
-
+# Dockerfile for unified-data service
 FROM python:3.11-slim
 
 WORKDIR /app

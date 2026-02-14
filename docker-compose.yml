@@ -1,5 +1,4 @@
-"""Docker Compose orchestration for all services."""
-
+# Docker Compose orchestration for all services.
 version: '3.8'
 
 services:

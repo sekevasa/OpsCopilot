@@ -1,5 +1,4 @@
-"""Dockerfile for data-ingest service."""
-
+# Dockerfile for data-ingest service
 FROM python:3.11-slim
 
 WORKDIR /app
