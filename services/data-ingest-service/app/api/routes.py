@@ -14,8 +14,18 @@ from ..domain.schemas import (
 from ..application.services import DataIngestionService
 from ..ingestion.orchestrator import IngestionOrchestrator
 from ..domain.repositories import IngestionJobRepository, StagingDataRepository
+from ..connectors.tally.models import (
+    TallyConnectorConfig,
+    TallyConnectionConfig,
+    TallyDataType,
+    TallySyncMode,
+    TallySyncRequest,
+    TallySyncResponse,
+    TallySyncStats,
+)
+from ..connectors.tally.tally_connector import TallyConnector
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 router = APIRouter(prefix="/api/v1", tags=["data-ingest"])
@@ -167,3 +177,97 @@ async def readiness_check():
 async def liveness_check():
     """Liveness probe for Kubernetes."""
     return {"status": "alive"}
+
+
+# ============================================================================
+# TALLY CONNECTOR ENDPOINTS
+# ============================================================================
+
+@router.post(
+    "/tally/validate",
+    status_code=status.HTTP_200_OK,
+    summary="Validate a Tally connector configuration",
+)
+async def validate_tally_config(config: TallyConnectorConfig) -> dict:
+    """
+    Validate a Tally connector configuration by attempting a connection.
+
+    Sends a ping to the configured Tally server and returns the result
+    without persisting any data.
+    """
+    connector = TallyConnector(config)
+    try:
+        connected = await connector.connect()
+        if connected:
+            return {"status": "ok", "message": "Successfully connected to Tally"}
+        return {"status": "error", "message": "Could not connect to Tally"}
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "TALLY_CONNECTION_FAILED", "message": str(exc)},
+        )
+    finally:
+        await connector.disconnect()
+
+
+@router.post(
+    "/tally/sync",
+    response_model=TallySyncResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Trigger a Tally sync operation",
+)
+async def trigger_tally_sync(request: TallySyncRequest) -> TallySyncResponse:
+    """
+    Trigger a Tally data sync operation.
+
+    Connects to the Tally server, extracts and transforms the requested
+    data types, and returns a job summary.  The sync runs synchronously
+    within the request; for large datasets consider running it as a
+    background task.
+    """
+    # Build a minimal connector config from the sync request
+    # In production this would be loaded from the database by connector_name
+    connection_config = TallyConnectionConfig()  # defaults to localhost:9000
+    connector_config = TallyConnectorConfig(
+        connector_name=request.connector_name,
+        connection=connection_config,
+        enabled_data_types=request.data_types or [],
+        sync_mode=request.sync_mode or TallySyncMode.INCREMENTAL,
+    )
+
+    connector = TallyConnector(connector_config)
+    try:
+        await connector.connect()
+        result = await connector.sync(
+            sync_mode=request.sync_mode,
+            from_date=request.from_date,
+            to_date=request.to_date,
+            data_types=request.data_types,
+        )
+        raw_stats = result.get("stats", {})
+        by_type = raw_stats.get("by_type", {})
+        stats = TallySyncStats(
+            total_masters=by_type.get("item", 0) + by_type.get("party", 0),
+            total_ledgers=by_type.get("ledger", 0),
+            total_vouchers=by_type.get("transaction", 0),
+            total_inventory_records=(
+                by_type.get("inventory_movement", 0) + by_type.get("stock_balance", 0)
+            ),
+            duration_seconds=raw_stats.get("duration_seconds", 0.0),
+        )
+        return TallySyncResponse(
+            job_id=uuid4(),
+            connector_name=request.connector_name,
+            status="COMPLETED",
+            message=f"Sync completed – {raw_stats.get('total_records', 0)} records",
+            sync_mode=request.sync_mode
+            or connector_config.sync_mode,
+            stats=stats,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "TALLY_SYNC_FAILED", "message": str(exc)},
+        )
+    finally:
+        await connector.disconnect()

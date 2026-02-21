@@ -102,6 +102,7 @@ class DataSourceType(str, Enum):
     QUALITY_CONTROL = "quality_control"
     PRODUCTION = "production"
     EXTERNAL_API = "external_api"
+    TALLY = "tally"
 
 
 class IngestionStatus(str, Enum):
