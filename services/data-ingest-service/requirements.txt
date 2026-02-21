@@ -29,3 +29,7 @@ isort==5.13.2
 # Utilities
 python-dotenv==1.0.0
 email-validator==2.1.0
+
+# Tally Connector
+httpx==0.25.1
+cryptography==46.0.5

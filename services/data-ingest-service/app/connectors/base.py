@@ -150,6 +150,7 @@ class ConnectorFactory:
         "inventory_system": InventoryConnector,
         "quality_control": InventoryConnector,
         "production": InventoryConnector,
+        "tally": ERPConnector,  # TallyConnector has its own init; use ERPConnector as placeholder
     }
 
     @classmethod
